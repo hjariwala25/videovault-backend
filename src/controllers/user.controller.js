@@ -233,7 +233,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
@@ -256,6 +256,9 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is required");
   }
 
+  const oldUser = await User.findById(req.user?._id);
+  const oldAvatarUrl = oldUser?.avatar;
+
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
   if (!avatar.url) {
@@ -272,6 +275,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password");
 
+  if(oldAvatarUrl){
+    const oldImagePublicId = oldAvatarUrl.split("/").pop().split(".")[0];
+    await cloudinary.uploader.destroy(oldImagePublicId);
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, user, "User avatar updated successfully"));
@@ -282,6 +290,9 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   if (!coverImageLocalPath) {
     throw new ApiError(400, "Cover image file is required");
   }
+
+  const oldUser = await User.findById(req.user?._id);
+  const oldCoverImageUrl = oldUser?.coverImage;
 
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
@@ -298,6 +309,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select("-password");
+
+  if(oldCoverImageUrl){
+    const oldImagePublicId = oldCoverImageUrl.split("/").pop().split(".")[0];
+    await cloudinary.uploader.destroy(oldImagePublicId);
+  }
 
   return res
     .status(200)
