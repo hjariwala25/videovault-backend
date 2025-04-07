@@ -20,7 +20,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   // Create match object with isPublished by default
   let match = { isPublished: true };
 
-  // Add search query if provided
+  // Add search query
   if (query) {
     match = {
       ...match,
@@ -41,8 +41,48 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
   const pipeline = [];
 
-  // Add the combined match conditions
+  // combined match conditions
   pipeline.push({ $match: match });
+
+  // lookup for owner details
+  pipeline.push({
+    $lookup: {
+      from: "users",
+      localField: "owner",
+      foreignField: "_id",
+      as: "ownerDetails",
+    },
+  });
+
+  // add owner information to each video
+  pipeline.push({
+    $addFields: {
+      owner: {
+        $first: "$ownerDetails",
+      },
+    },
+  });
+
+  pipeline.push({
+    $project: {
+      _id: 1,
+      videoFile: 1,
+      thumbnail: 1,
+      title: 1,
+      description: 1,
+      duration: 1,
+      views: 1,
+      isPublished: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      owner: {
+        _id: "$owner._id",
+        username: "$owner.username",
+        fullname: "$owner.fullname",
+        avatar: "$owner.avatar",
+      },
+    },
+  });
 
   // Add sorting
   if (sortBy && sortType) {

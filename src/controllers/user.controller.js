@@ -1,7 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -253,7 +256,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.files?.path;
+  const avatarLocalPath = req.file?.path;
 
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is required");
@@ -280,7 +283,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
   if (oldAvatarUrl) {
     const oldImagePublicId = oldAvatarUrl.split("/").pop().split(".")[0];
-    await cloudinary.uploader.destroy(oldImagePublicId);
+    await deleteFromCloudinary(oldImagePublicId);
   }
 
   return res
@@ -288,7 +291,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "User avatar updated successfully"));
 });
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-  const coverImageLocalPath = req.files?.path;
+  const coverImageLocalPath = req.file?.path;
 
   if (!coverImageLocalPath) {
     throw new ApiError(400, "Cover image file is required");
@@ -315,7 +318,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
   if (oldCoverImageUrl) {
     const oldImagePublicId = oldCoverImageUrl.split("/").pop().split(".")[0];
-    await cloudinary.uploader.destroy(oldImagePublicId);
+    await deleteFromCloudinary(oldImagePublicId);
   }
 
   return res
