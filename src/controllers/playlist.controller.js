@@ -194,25 +194,42 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         _id: new mongoose.Types.ObjectId(playlistId),
       },
     },
+    // Lookup playlist owner
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerDetails",
+      },
+    },
+    // Lookup videos with nested lookup for each video's owner
     {
       $lookup: {
         from: "videos",
         localField: "videos",
         foreignField: "_id",
         as: "videos",
-      },
-    },
-    {
-      $match: {
-        "videos.isPublished": true,
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "videos.owner",
-        foreignField: "_id",
-        as: "ownerDetails",
+        pipeline: [
+          {
+            $match: {
+              isPublished: true,
+            },
+          },
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "videoOwner",
+            },
+          },
+          {
+            $addFields: {
+              owner: { $first: "$videoOwner" },
+            },
+          },
+        ],
       },
     },
     {
@@ -231,14 +248,26 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         totalVideos: 1,
         totalViews: 1,
         videos: {
-          _id: 1,
-          videoFile: 1,
-          thumbnail: 1,
-          title: 1,
-          description: 1,
-          duration: 1,
-          createdAt: 1,
-          views: 1,
+          $map: {
+            input: "$videos",
+            as: "video",
+            in: {
+              _id: "$$video._id",
+              videoFile: "$$video.videoFile",
+              thumbnail: "$$video.thumbnail",
+              title: "$$video.title",
+              description: "$$video.description",
+              duration: "$$video.duration",
+              createdAt: "$$video.createdAt",
+              views: "$$video.views",
+              owner: {
+                _id: "$$video.owner._id",
+                username: "$$video.owner.username",
+                fullname: "$$video.owner.fullname",
+                avatar: "$$video.owner.avatar",
+              },
+            },
+          },
         },
         owner: {
           username: 1,
@@ -273,22 +302,48 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
         owner: new mongoose.Types.ObjectId(userId),
       },
     },
+    // Lookup for playlist owner
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "playlistOwner",
+      },
+    },
+    {
+      $addFields: {
+        playlistOwner: { $first: "$playlistOwner" },
+      },
+    },
+    // Lookup videos with nested lookup for each video's owner
     {
       $lookup: {
         from: "videos",
         localField: "videos",
         foreignField: "_id",
         as: "videos",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "videoOwner",
+            },
+          },
+          {
+            $addFields: {
+              owner: { $first: "$videoOwner" },
+            },
+          },
+        ],
       },
     },
     {
       $addFields: {
-        totalVideos: {
-          $size: "$videos",
-        },
-        totalViews: {
-          $sum: "$videos.views",
-        },
+        totalVideos: { $size: "$videos" },
+        totalViews: { $sum: "$videos.views" },
       },
     },
     {
@@ -299,6 +354,34 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
         totalVideos: 1,
         totalViews: 1,
         updatedAt: 1,
+        // Include playlist owner details
+        owner: {
+          _id: "$playlistOwner._id",
+          username: "$playlistOwner.username",
+          fullname: "$playlistOwner.fullname",
+          avatar: "$playlistOwner.avatar",
+        },
+        // Include videos with their owners
+        videos: {
+          $map: {
+            input: "$videos",
+            as: "video",
+            in: {
+              _id: "$$video._id",
+              videoFile: "$$video.videoFile",
+              thumbnail: "$$video.thumbnail",
+              title: "$$video.title",
+              duration: "$$video.duration",
+              views: "$$video.views",
+              owner: {
+                _id: "$$video.owner._id",
+                username: "$$video.owner.username",
+                fullname: "$$video.owner.fullname",
+                avatar: "$$video.owner.avatar",
+              },
+            },
+          },
+        },
       },
     },
   ]);
