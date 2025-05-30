@@ -13,33 +13,23 @@ import mongoose from "mongoose";
 const generateCookieOptions = (isRefreshToken = false) => {
   const isProd = process.env.NODE_ENV === "production";
 
-  // Log environment info for debugging
   console.log(
-    `Setting ${
-      isRefreshToken ? "refresh" : "access"
-    } token cookie in ${isProd ? "PRODUCTION" : "DEVELOPMENT"} mode`
+    `Setting ${isRefreshToken ? "refresh" : "access"} token cookie in ${isProd ? "PRODUCTION" : "DEVELOPMENT"} mode`
   );
 
   // Base options for all environments
   const options = {
     httpOnly: true,
-    secure: isProd, 
-    sameSite: isProd ? "none" : "lax",
+    secure: isProd, // Only true in production
+    sameSite: isProd ? "none" : "lax", // Must be 'none' for cross-site cookies in production
     path: "/",
     maxAge: isRefreshToken
       ? 10 * 24 * 60 * 60 * 1000 // 10 days for refresh token
       : 24 * 60 * 60 * 1000, // 1 day for access token
   };
 
-  // Add domain option only in production to avoid localhost issues
-  if (isProd) {
-    const cookieDomain =
-      process.env.PROD_COOKIE_DOMAIN || process.env.COOKIE_DOMAIN;
-    if (cookieDomain) {
-      options.domain = cookieDomain;
-      console.log(`Using cookie domain: ${options.domain}`);
-    }
-  }
+  // We don't need to set domain for cookies to work
+  // Browsers will automatically use the domain of the server that set the cookie
 
   return options;
 };
@@ -50,8 +40,10 @@ const generateAccessAndRefreshTokens = async (userId) => {
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
 
+    // Save refresh token to database
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
+
     return { accessToken, refreshToken };
   } catch (error) {
     throw new ApiError(
@@ -127,9 +119,11 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
+
   if (!(username || email)) {
     throw new ApiError(400, "Username or email is required");
   }
+
   const user = await User.findOne({
     $or: [{ username }, { email }],
   });
@@ -152,10 +146,10 @@ const loginUser = asyncHandler(async (req, res) => {
     "-password -refreshToken"
   );
 
-  // Use the new helper function
   const accessTokenOptions = generateCookieOptions();
   const refreshTokenOptions = generateCookieOptions(true);
 
+  // Include the tokens in the response as well as cookies
   return res
     .status(200)
     .cookie("accessToken", accessToken, accessTokenOptions)
@@ -163,7 +157,11 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser },
+        {
+          user: loggedInUser,
+          accessToken, // Include token in response for clients that can't use cookies
+          refreshToken,
+        },
         "User logged in successfully"
       )
     );
@@ -193,11 +191,12 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  // Get the refresh token only from cookies
-  const incomingRefreshToken = req.cookies.refreshToken;
+  // Get the refresh token from cookies or request body
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
-    throw new ApiError(401, "Unauthorized request");
+    throw new ApiError(401, "Unauthorized request - Refresh token missing");
   }
 
   try {
@@ -206,39 +205,42 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
+    // Find user by ID from decoded token
     const user = await User.findById(decodedToken?._id);
 
     if (!user) {
-      throw new ApiError(401, "Invalid user credentials");
+      throw new ApiError(401, "Invalid refresh token");
     }
 
-    if (incomingRefreshToken !== user?.refreshToken) {
-      throw new ApiError(401, "Refresh token is invalid");
+    // Verify that the incoming token matches the one in the database
+    if (user.refreshToken !== incomingRefreshToken) {
+      throw new ApiError(401, "Refresh token is expired or used");
     }
 
-    // Use the helper function for cookie options
+    // Generate new tokens
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+      user._id
+    );
+
+    // Set new cookies
     const accessTokenOptions = generateCookieOptions();
     const refreshTokenOptions = generateCookieOptions(true);
-
-    const { accessToken, refreshToken: newRefreshToken } =
-      await generateAccessAndRefreshTokens(user._id);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, accessTokenOptions)
-      .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
+      .cookie("refreshToken", refreshToken, refreshTokenOptions)
       .json(
         new ApiResponse(
           200,
-          { user: user },
+          { accessToken, refreshToken },
           "Access token refreshed successfully"
         )
       );
   } catch (error) {
-    throw new ApiError(401, error?.message || "Invalid user credentials");
+    throw new ApiError(401, error?.message || "Invalid refresh token");
   }
 });
-
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 

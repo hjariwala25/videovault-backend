@@ -29,26 +29,24 @@ const corsOptions = {
           "http://localhost:3000",
           "http://127.0.0.1:3000",
           "http://172.20.32.1:3000",
-          "null",
         ];
 
-    // Allow requests with no origin (like mobile apps)
-    if (!origin || allowedOrigins.includes(origin)) {
+    // For development, allow requests with no origin (like mobile apps or Postman)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log(`Blocked by CORS: ${origin} not in`, allowedOrigins);
       callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-  exposedHeaders: ["set-cookie"],
 };
 
 // Apply CORS before any routes
 app.use(cors(corsOptions));
 
+// Parse JSON bodies based on Content-Type
 app.use((req, res, next) => {
   if (req.method === "GET") {
     return next();
@@ -56,7 +54,6 @@ app.use((req, res, next) => {
   express.json({ limit: "16kb" })(req, res, next);
 });
 
-// app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
