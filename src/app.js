@@ -4,14 +4,33 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
-app.use(
-  cors({
-    origin: process.env.NODE_ENV === 'production' 
-      ? [process.env.CORS_ORIGIN, process.env.FRONTEND_URL]
-      : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://172.20.32.1:3000'],
-    credentials: true,
-  })
-);
+// Update CORS configuration
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins =
+      process.env.NODE_ENV === "production"
+        ? [process.env.CORS_ORIGIN, process.env.FRONTEND_URL]
+        : [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://172.20.32.1:3000",
+            "null",
+          ];
+
+    // Allow requests with no origin (like mobile apps)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
   if (req.method === "GET") {
