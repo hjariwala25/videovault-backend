@@ -117,20 +117,28 @@ const loginUser = asyncHandler(async (req, res) => {
     "-password -refreshToken"
   );
 
+  // Set secure cookie options
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", 
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    // Adding expiry time for cookies
+    maxAge: 24 * 60 * 60 * 1000, // 1 day for access token
+  };
+
+  const refreshTokenOptions = {
+    ...options,
+    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days for refresh token
   };
 
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("refreshToken", refreshToken, refreshTokenOptions)
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, accessToken, refreshToken },
+        { user: loggedInUser },
         "User logged in successfully"
       )
     );
@@ -151,7 +159,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   };
 
   return res
@@ -162,8 +171,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+  // Get the refresh token only from cookies
+  const incomingRefreshToken = req.cookies.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request");
@@ -187,22 +196,28 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const options = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 1 day for access token
     };
 
-    const { accessToken, newRefreshToken } =
+    const refreshTokenOptions = {
+      ...options,
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days for refresh token
+    };
+
+    const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
       .json(
         new ApiResponse(
           200,
-          { accessToken, refreshToken: newRefreshToken },
-          "User logged in successfully"
+          { user: user },
+          "Access token refreshed successfully"
         )
       );
   } catch (error) {

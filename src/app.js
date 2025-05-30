@@ -4,8 +4,7 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
-// Update CORS configuration
-
+// Update CORS configuration with explicit credentials support
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins =
@@ -27,9 +26,11 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  exposedHeaders: ["set-cookie"],
 };
 
+// Apply CORS before any routes
 app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
