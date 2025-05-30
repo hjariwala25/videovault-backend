@@ -9,6 +9,41 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
+// Helper function to generate cookie options
+const generateCookieOptions = (isRefreshToken = false) => {
+  const isProd = process.env.NODE_ENV === "production";
+
+  // Log environment info for debugging
+  console.log(
+    `Setting ${
+      isRefreshToken ? "refresh" : "access"
+    } token cookie in ${isProd ? "PRODUCTION" : "DEVELOPMENT"} mode`
+  );
+
+  // Base options for all environments
+  const options = {
+    httpOnly: true,
+    secure: isProd, 
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
+    maxAge: isRefreshToken
+      ? 10 * 24 * 60 * 60 * 1000 // 10 days for refresh token
+      : 24 * 60 * 60 * 1000, // 1 day for access token
+  };
+
+  // Add domain option only in production to avoid localhost issues
+  if (isProd) {
+    const cookieDomain =
+      process.env.PROD_COOKIE_DOMAIN || process.env.COOKIE_DOMAIN;
+    if (cookieDomain) {
+      options.domain = cookieDomain;
+      console.log(`Using cookie domain: ${options.domain}`);
+    }
+  }
+
+  return options;
+};
+
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -117,23 +152,13 @@ const loginUser = asyncHandler(async (req, res) => {
     "-password -refreshToken"
   );
 
-  // Set secure cookie options
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    // Adding expiry time for cookies
-    maxAge: 24 * 60 * 60 * 1000, // 1 day for access token
-  };
-
-  const refreshTokenOptions = {
-    ...options,
-    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days for refresh token
-  };
+  // Use the new helper function
+  const accessTokenOptions = generateCookieOptions();
+  const refreshTokenOptions = generateCookieOptions(true);
 
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
+    .cookie("accessToken", accessToken, accessTokenOptions)
     .cookie("refreshToken", refreshToken, refreshTokenOptions)
     .json(
       new ApiResponse(
@@ -157,11 +182,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
   );
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  };
+  // Use the helper function for cookie options
+  const options = generateCookieOptions();
 
   return res
     .status(200)
@@ -194,24 +216,16 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Refresh token is invalid");
     }
 
-    const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day for access token
-    };
-
-    const refreshTokenOptions = {
-      ...options,
-      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days for refresh token
-    };
+    // Use the helper function for cookie options
+    const accessTokenOptions = generateCookieOptions();
+    const refreshTokenOptions = generateCookieOptions(true);
 
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
 
     return res
       .status(200)
-      .cookie("accessToken", accessToken, options)
+      .cookie("accessToken", accessToken, accessTokenOptions)
       .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
       .json(
         new ApiResponse(

@@ -4,23 +4,39 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
+// Determine environment
+const isProd = process.env.NODE_ENV === "production";
+
+// Get environment-specific URLs
+const CORS_ORIGIN = isProd
+  ? process.env.PROD_CORS_ORIGIN || "https://videovault-iota.vercel.app"
+  : process.env.DEV_CORS_ORIGIN || "http://localhost:3000";
+
+const FRONTEND_URL = isProd
+  ? process.env.PROD_FRONTEND_URL || "https://videovault-iota.vercel.app"
+  : process.env.DEV_FRONTEND_URL || "http://localhost:3000";
+
+console.log(`Running in ${isProd ? "PRODUCTION" : "DEVELOPMENT"} mode`);
+console.log(`CORS Origin: ${CORS_ORIGIN}`);
+console.log(`Frontend URL: ${FRONTEND_URL}`);
+
 // Update CORS configuration with explicit credentials support
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins =
-      process.env.NODE_ENV === "production"
-        ? [process.env.CORS_ORIGIN, process.env.FRONTEND_URL]
-        : [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://172.20.32.1:3000",
-            "null",
-          ];
+    const allowedOrigins = isProd
+      ? [CORS_ORIGIN, FRONTEND_URL].filter(Boolean)
+      : [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "http://172.20.32.1:3000",
+          "null",
+        ];
 
     // Allow requests with no origin (like mobile apps)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(`Blocked by CORS: ${origin} not in`, allowedOrigins);
       callback(new Error("Not allowed by CORS"));
     }
   },
