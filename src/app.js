@@ -36,7 +36,7 @@ const corsOptions = {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin} not in`, allowedOrigins);
+      // console.log(`CORS blocked origin: ${origin} not in`, allowedOrigins);
       callback(new Error(`CORS not allowed for origin: ${origin}`));
     }
   },
@@ -90,6 +90,7 @@ import likeRouter from "./routes/like.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import playlistRouter from "./routes/playlist.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
+import discoverRouter from "./routes/discover.routes.js";
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/video", videoRouter);
@@ -100,6 +101,7 @@ app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/playlists", playlistRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/discover", discoverRouter);
 
 // Debug route for CORS testing
 app.get("/api/v1/cors-debug", (req, res) => {

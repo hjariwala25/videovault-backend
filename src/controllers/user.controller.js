@@ -184,7 +184,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   // Enhanced refresh token retrieval with detailed logging
-  console.log("Cookie content in refresh:", req.cookies);
+  // console.log("Cookie content in refresh:", req.cookies);
 
   // Get the refresh token from cookies, body, or query parameters
   const incomingRefreshToken =

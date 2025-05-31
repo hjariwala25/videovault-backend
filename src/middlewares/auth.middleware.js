@@ -11,7 +11,7 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
 
   try {
     // Enhanced token retrieval with detailed logging
-    console.log("Cookie content:", req.cookies);
+    // console.log("Cookie content:", req.cookies);
 
     // Try to get token from various sources
     const token =
@@ -20,7 +20,7 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
       req.body?.accessToken ||
       req.query?.accessToken;
 
-    console.log("Auth attempt with token:", token ? "Present" : "Missing");
+    // console.log("Auth attempt with token:", token ? "Present" : "Missing");
 
     if (!token) {
       throw new ApiError(401, "Unauthorized request - No token provided");
