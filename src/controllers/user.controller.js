@@ -13,23 +13,15 @@ import mongoose from "mongoose";
 const generateCookieOptions = (isRefreshToken = false) => {
   const isProd = process.env.NODE_ENV === "production";
 
-  console.log(
-    `Setting ${isRefreshToken ? "refresh" : "access"} token cookie in ${isProd ? "PRODUCTION" : "DEVELOPMENT"} mode`
-  );
-
-  // Base options for all environments
   const options = {
     httpOnly: true,
-    secure: isProd, // Only true in production
-    sameSite: isProd ? "none" : "lax", // Must be 'none' for cross-site cookies in production
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
-    maxAge: isRefreshToken
-      ? 10 * 24 * 60 * 60 * 1000 // 10 days for refresh token
-      : 24 * 60 * 60 * 1000, // 1 day for access token
+    maxAge: isRefreshToken ? 10 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
+    // Add Partitioned attribute for Safari (doesn't affect other browsers)
+    ...(isProd ? { partitioned: true } : {}),
   };
-
-  // We don't need to set domain for cookies to work
-  // Browsers will automatically use the domain of the server that set the cookie
 
   return options;
 };
@@ -191,9 +183,19 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  // Get the refresh token from cookies or request body
+  // Enhanced refresh token retrieval with detailed logging
+  console.log("Cookie content in refresh:", req.cookies);
+
+  // Get the refresh token from cookies, body, or query parameters
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+    req.cookies?.refreshToken ||
+    req.body?.refreshToken ||
+    req.query?.refreshToken;
+
+  console.log(
+    "Refresh attempt with token:",
+    incomingRefreshToken ? "Present" : "Missing"
+  );
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request - Refresh token missing");

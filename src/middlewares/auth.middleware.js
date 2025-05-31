@@ -5,35 +5,32 @@ import { User } from "../models/user.models.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
   try {
-    // Get token from cookies
-    const token = req.cookies?.accessToken;
+    // Enhanced token retrieval with detailed logging
+    console.log("Cookie content:", req.cookies);
 
-    // If token is not in cookies, check if it's in the Authorization header
+    // Try to get token from various sources
+    const token =
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "") ||
+      req.body?.accessToken ||
+      req.query?.accessToken;
+
+    console.log("Auth attempt with token:", token ? "Present" : "Missing");
+
     if (!token) {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        throw new ApiError(401, "Unauthorized request - No token provided");
-      }
-      token = authHeader.split(" ")[1];
+      throw new ApiError(401, "Unauthorized request - No token provided");
     }
 
-    if (!token) {
-      throw new ApiError(401, "Unauthorized request");
-    }
-
-    // Verify the token
     const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-    // Find the user
     const user = await User.findById(decodedToken?._id).select(
       "-password -refreshToken"
     );
 
     if (!user) {
-      throw new ApiError(401, "Invalid access token");
+      throw new ApiError(401, "Invalid user credentials");
     }
 
-    // Set the user on the request object
     req.user = user;
     next();
   } catch (error) {
