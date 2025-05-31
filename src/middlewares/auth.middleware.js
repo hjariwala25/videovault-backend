@@ -4,6 +4,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.models.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
+  // Skip authentication for OPTIONS requests
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   try {
     // Enhanced token retrieval with detailed logging
     console.log("Cookie content:", req.cookies);

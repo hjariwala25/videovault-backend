@@ -40,7 +40,7 @@ const corsOptions = {
       callback(new Error(`CORS not allowed for origin: ${origin}`));
     }
   },
-  credentials: true, // Important for cookies
+  credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",
@@ -50,26 +50,35 @@ const corsOptions = {
     "X-Requested-With",
   ],
   exposedHeaders: ["set-cookie"],
-  preflightContinue: true,
+  preflightContinue: false, // IMPORTANT: Change this to false
   optionsSuccessStatus: 204,
 };
 
 // Apply CORS before any routes
 app.use(cors(corsOptions));
 
-app.options("*", cors(corsOptions));
+// No need for this when preflightContinue is false
+// app.options("*", cors(corsOptions));
 
-// Parse JSON bodies based on Content-Type
+// Using cookie parser early in the middleware chain
+app.use(cookieParser());
+
+// Parse JSON bodies based on Content-Type - MOVED after cookieParser
 app.use((req, res, next) => {
+  // Skip body parsing for OPTIONS requests
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   if (req.method === "GET") {
     return next();
   }
+
   express.json({ limit: "16kb" })(req, res, next);
 });
 
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
-app.use(cookieParser());
 
 //routes
 import healthCheckRouter from "./routes/healthcheck.routes.js";
@@ -91,5 +100,31 @@ app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/playlists", playlistRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+
+// Debug route for CORS testing
+app.get("/api/v1/cors-debug", (req, res) => {
+  res.json({
+    message: "CORS GET is working",
+    headers: req.headers,
+    method: req.method,
+    cookies: req.cookies,
+  });
+});
+
+// Debug route for CORS POST testing
+app.post("/api/v1/cors-debug", (req, res) => {
+  res.json({
+    message: "CORS POST is working",
+    body: req.body,
+    headers: req.headers,
+    method: req.method,
+    cookies: req.cookies,
+  });
+});
+
+// Handle OPTIONS globally with proper headers
+app.options("*", (req, res) => {
+  res.status(204).end();
+});
 
 export { app };
