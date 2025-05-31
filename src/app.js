@@ -23,6 +23,7 @@ console.log(`Frontend URL: ${FRONTEND_URL}`);
 // Update CORS configuration with explicit credentials support
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log("Request origin:", origin);
     const allowedOrigins = isProd
       ? [CORS_ORIGIN, FRONTEND_URL].filter(Boolean)
       : [
@@ -35,16 +36,28 @@ const corsOptions = {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      console.log(`CORS blocked origin: ${origin} not in`, allowedOrigins);
+      callback(new Error(`CORS not allowed for origin: ${origin}`));
     }
   },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  credentials: true, // Important for cookies
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "Origin",
+    "X-Requested-With",
+  ],
+  exposedHeaders: ["set-cookie"],
+  preflightContinue: true,
+  optionsSuccessStatus: 204,
 };
 
 // Apply CORS before any routes
 app.use(cors(corsOptions));
+
+app.options("*", cors(corsOptions));
 
 // Parse JSON bodies based on Content-Type
 app.use((req, res, next) => {
