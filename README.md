@@ -2,7 +2,9 @@
 
 ## 🚀 Live Demo
 
-VideoVault: [https://videovault-iota.vercel.app](https://videovault-iota.vercel.app)
+VideoVault : [https://videovault-iota.vercel.app](https://videovault-iota.vercel.app)
+
+API Documentation : [Postman Collection](https://www.postman.co/workspace/VideoVault~b3f939af-0efd-4233-89e9-381454b09308/collection/40708315-32ffcc91-0774-40cc-969a-a56dee07fae6)
 
 ## 📋 Overview
 
@@ -126,4 +128,3 @@ This backend service pairs with our [VideoVault Frontend](https://github.com/hja
 ## 👥 Contributing
 
 If you wish to contribute to this project, please feel free to contribute.
-    
