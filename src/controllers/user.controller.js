@@ -17,10 +17,10 @@ const generateCookieOptions = (isRefreshToken = false) => {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
-    path: "/",
     maxAge: isRefreshToken ? 10 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
     // Add Partitioned attribute for Safari (doesn't affect other browsers)
     ...(isProd ? { partitioned: true } : {}),
+    ...(isProd ? { domain: ".videovault-iota.vercel.app" } : {}),
   };
 
   return options;
