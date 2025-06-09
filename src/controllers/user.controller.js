@@ -14,14 +14,19 @@ const generateCookieOptions = (isRefreshToken = false) => {
   const isProd = process.env.NODE_ENV === "production";
 
   const options = {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    maxAge: isRefreshToken ? 10 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
-    // Add Partitioned attribute for Safari (doesn't affect other browsers)
-    ...(isProd ? { partitioned: true } : {}),
-    ...(isProd ? { domain: ".videovault-iota.vercel.app" } : {}),
+    httpOnly: true, 
+    secure: isProd,  // 'secure' ensures cookies are sent over HTTPS only
+    sameSite: isProd ? "none" : "lax", // 'none' is required for cross-domain cookies, along with 'secure: true'
+    maxAge: isRefreshToken ? 10 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 10 days for refresh token, 1 day for access token
+    path: "/",       
+    ...(isProd ? { partitioned: true } : {}), 
   };
+
+  // if (!isProd) {
+  //   console.log("Cookie options (dev):", options);
+  // } else {
+  //   console.log("Cookie options (prod):", options);
+  // }
 
   return options;
 };
