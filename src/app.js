@@ -9,11 +9,11 @@ const isProd = process.env.NODE_ENV === "production";
 
 // Get environment-specific URLs
 const CORS_ORIGIN = isProd
-  ? process.env.PROD_CORS_ORIGIN || "https://videovault-iota.vercel.app"
+  ? process.env.PROD_CORS_ORIGIN || "https://videovault.hitanshujariwala.live"
   : process.env.DEV_CORS_ORIGIN || "http://localhost:3000";
 
 const FRONTEND_URL = isProd
-  ? process.env.PROD_FRONTEND_URL || "https://videovault-iota.vercel.app"
+  ? process.env.PROD_FRONTEND_URL || "https://videovault.hitanshujariwala.live"
   : process.env.DEV_FRONTEND_URL || "http://localhost:3000";
 
 console.log(`Running in ${isProd ? "PRODUCTION" : "DEVELOPMENT"} mode`);
