@@ -24,6 +24,7 @@ console.log(`Frontend URL: ${FRONTEND_URL}`);
 const corsOptions = {
   origin: function (origin, callback) {
     console.log("Request origin:", origin);
+
     const allowedOrigins = isProd
       ? [CORS_ORIGIN, FRONTEND_URL].filter(Boolean)
       : [
@@ -32,11 +33,44 @@ const corsOptions = {
           "http://172.20.32.1:3000",
         ];
 
+    // Define allowed domains for subdomain matching
+    const allowedDomains = isProd
+      ? ["vercel.app", "videovault-iota.vercel.app","hitanshujariwala.live", "videovault.hitanshujariwala.live"] // Add your production domains
+      : ["localhost", "127.0.0.1", "172.20.32.1"]; // Development domains
+
+    // Function to check if origin matches allowed subdomains
+    const isSubdomainAllowed = (origin) => {
+      if (!origin) return false;
+
+      try {
+        const url = new URL(origin);
+        const hostname = url.hostname;
+
+        return allowedDomains.some((domain) => {
+          // Exact match
+          if (hostname === domain) return true;
+
+          // Subdomain match (e.g., *.vercel.app)
+          if (hostname.endsWith(`.${domain}`)) return true;
+
+          return false;
+        });
+      } catch (error) {
+        return false;
+      }
+    };
+
     // For development, allow requests with no origin (like mobile apps or Postman)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (
+      !origin ||
+      allowedOrigins.indexOf(origin) !== -1 ||
+      isSubdomainAllowed(origin)
+    ) {
       callback(null, true);
     } else {
-      // console.log(`CORS blocked origin: ${origin} not in`, allowedOrigins);
+      console.log(
+        `CORS blocked origin: ${origin} not in allowed origins/subdomains`
+      );
       callback(new Error(`CORS not allowed for origin: ${origin}`));
     }
   },
@@ -57,11 +91,32 @@ const corsOptions = {
 // Apply CORS before any routes
 app.use(cors(corsOptions));
 
-// No need for this when preflightContinue is false
-// app.options("*", cors(corsOptions));
-
-// Using cookie parser early in the middleware chain
+// Configure cookie parser with cross-subdomain settings
 app.use(cookieParser());
+
+// Add middleware to set cookie headers for cross-subdomain support
+app.use((req, res, next) => {
+  // Set headers for cross-subdomain cookie sharing
+  if (isProd) {
+    res.setHeader("Set-Cookie", ["SameSite=None; Secure; Partitioned"]);
+  }
+
+  // Override res.cookie to include cross-subdomain settings
+  const originalCookie = res.cookie;
+  res.cookie = function (name, value, options = {}) {
+    const cookieOptions = {
+      ...options,
+      sameSite: isProd ? "none" : "lax", // Use 'none' for production, 'lax' for development
+      secure: isProd, // Only secure in production (HTTPS required)
+      ...(isProd && { partitioned: true }), // Add partitioned flag in production
+      httpOnly: options.httpOnly !== false, // Default to httpOnly unless explicitly set to false
+    };
+
+    return originalCookie.call(this, name, value, cookieOptions);
+  };
+
+  next();
+});
 
 // Parse JSON bodies based on Content-Type - MOVED after cookieParser
 app.use((req, res, next) => {
